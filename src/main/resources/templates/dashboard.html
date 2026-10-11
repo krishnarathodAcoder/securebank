@@ -1,0 +1,381 @@
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SecureBank | Dashboard</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            color: #172554;
+            min-height: 100vh;
+        }
+
+        header {
+            background: #172554;
+            color: white;
+            padding: 20px 6%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        header h2 {
+            font-size: 22px;
+        }
+
+        .logout-button {
+            padding: 10px 16px;
+            background: white;
+            color: #172554;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .logout-button:hover {
+            background: #dbeafe;
+        }
+
+        .logout-button:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .welcome {
+            margin-bottom: 28px;
+        }
+
+        .welcome h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .welcome p {
+            color: #64748b;
+            line-height: 1.6;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(
+                auto-fit,
+                minmax(220px, 1fr)
+            );
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            padding: 24px;
+            border-radius: 14px;
+            box-shadow: 0 4px 15px rgba(15, 23, 42, 0.05);
+        }
+
+        .card p {
+            color: #64748b;
+            margin-bottom: 14px;
+        }
+
+        .card h2 {
+            font-size: 24px;
+            overflow-wrap: anywhere;
+        }
+
+        .section {
+            margin-top: 28px;
+            background: white;
+            padding: 24px;
+            border-radius: 14px;
+            box-shadow: 0 4px 15px rgba(15, 23, 42, 0.05);
+        }
+
+        .section h2 {
+            margin-bottom: 10px;
+        }
+
+        .section p {
+            color: #64748b;
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+
+        .actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .action-button {
+            display: inline-block;
+            padding: 12px 20px;
+            background: #155eef;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .action-button:hover {
+            background: #1748b8;
+        }
+
+        .secondary-button {
+            background: #e2e8f0;
+            color: #172554;
+        }
+
+        .secondary-button:hover {
+            background: #cbd5e1;
+        }
+
+        #dashboardMessage {
+            overflow-wrap: anywhere;
+        }
+
+        .status-message {
+            color: #b45309;
+        }
+
+        .success-message {
+            color: #15803d;
+        }
+
+        @media (max-width: 480px) {
+            header {
+                padding: 16px 20px;
+            }
+
+            .container {
+                margin: 28px auto;
+            }
+
+            .welcome h1 {
+                font-size: 23px;
+            }
+
+            .card,
+            .section {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h2>🏦 SecureBank</h2>
+
+    <button
+            class="logout-button"
+            id="logoutButton"
+            type="button"
+            onclick="logout()">
+        Log out
+    </button>
+</header>
+
+<main class="container">
+
+    <section class="welcome">
+        <h1>Welcome to your dashboard</h1>
+        <p>Your banking overview, all in one place.</p>
+    </section>
+
+    <!-- Account summary -->
+    <section class="cards">
+
+        <article class="card">
+            <p>Total Account Balance</p>
+            <h2 id="balance">Loading...</h2>
+        </article>
+
+        <article class="card">
+            <p>My Accounts</p>
+            <h2 id="accountCount">Loading...</h2>
+        </article>
+
+        <article class="card">
+            <p>Recent Transactions</p>
+            <h2>Coming soon</h2>
+        </article>
+
+    </section>
+
+    <!-- Banking actions -->
+    <section class="section">
+        <h2>My Banking</h2>
+        <p>Manage your accounts and make transfers.</p>
+
+        <div class="actions">
+            <a href="/transfer" class="action-button">
+                ↔ Transfer Money
+            </a>
+
+            <a href="/api/v1/accounts" class="action-button secondary-button">
+                View Account Data
+            </a>
+        </div>
+    </section>
+
+    <!-- Account status -->
+    <section class="section">
+        <h2>Account Overview</h2>
+
+        <p id="dashboardMessage"
+           role="status"
+           aria-live="polite">
+            Loading your account information...
+        </p>
+    </section>
+
+    <!-- Transaction history placeholder -->
+    <section class="section">
+        <h2>Transaction History</h2>
+        <p>
+            Your transaction history will appear here when the
+            transaction-history API is connected to this section.
+        </p>
+    </section>
+
+</main>
+
+<script>
+    async function loadAccounts() {
+        const balanceElement =
+            document.getElementById("balance");
+
+        const countElement =
+            document.getElementById("accountCount");
+
+        const messageElement =
+            document.getElementById("dashboardMessage");
+
+        try {
+            const response = await fetch("/api/v1/accounts", {
+                method: "GET",
+                credentials: "same-origin",
+                headers: {
+                    "Accept": "application/json"
+                }
+            });
+
+            if (response.status === 401) {
+                window.location.href = "/login-page";
+                return;
+            }
+
+            if (response.status === 403) {
+                throw new Error(
+                    "Access denied. Please check your login session."
+                );
+            }
+
+            if (!response.ok) {
+                throw new Error(
+                    "Unable to load accounts. Please try again."
+                );
+            }
+
+            const accounts = await response.json();
+
+            if (!Array.isArray(accounts)) {
+                throw new Error("Unexpected account data received.");
+            }
+
+            const totalBalance = accounts.reduce(
+                (total, account) =>
+                    total + Number(account.balance || 0),
+                0
+            );
+
+            balanceElement.textContent =
+                totalBalance.toLocaleString("en-IN", {
+                    style: "currency",
+                    currency: "INR"
+                });
+
+            countElement.textContent = accounts.length;
+
+            messageElement.textContent =
+                "Your account information loaded successfully.";
+
+            messageElement.classList.remove("status-message");
+            messageElement.classList.add("success-message");
+
+        } catch (error) {
+            balanceElement.textContent = "Unavailable";
+            countElement.textContent = "—";
+
+            messageElement.textContent =
+                error.message ||
+                "Unable to connect to SecureBank.";
+
+            messageElement.classList.remove("success-message");
+            messageElement.classList.add("status-message");
+        }
+    }
+
+    async function logout() {
+        const logoutButton =
+            document.getElementById("logoutButton");
+
+        logoutButton.disabled = true;
+        logoutButton.textContent = "Logging out...";
+
+        try {
+            const response = await fetch("/api/v1/auth/logout", {
+                method: "POST",
+                credentials: "same-origin"
+            });
+
+            if (response.ok) {
+                window.location.replace("/login-page");
+                return;
+            }
+
+            if (response.status === 403) {
+                alert(
+                    "Logout was blocked by CSRF protection. " +
+                    "The CSRF token needs to be configured."
+                );
+            } else if (response.status === 401) {
+                window.location.replace("/login-page");
+                return;
+            } else {
+                alert("Unable to log out. Please try again.");
+            }
+
+        } catch (error) {
+            alert("Unable to connect to SecureBank.");
+        } finally {
+            logoutButton.disabled = false;
+            logoutButton.textContent = "Log out";
+        }
+    }
+
+    loadAccounts();
+</script>
+
+</body>
+</html>
